@@ -1,10 +1,9 @@
-# The functions in this file are to be implemented by students.
-
 import bitio
 import huffman
 
 
 def read_tree(bitreader):
+
     '''Read a description of a Huffman tree from the given bit reader,
     and construct and return the tree. When this function returns, the
     bit reader should be ready to read the next bit immediately
@@ -13,7 +12,7 @@ def read_tree(bitreader):
     Huffman trees are stored in the following format:
       * TreeLeaf is represented by the two bits 01, followed by 8 bits
           for the symbol at that leaf.
-      * TreeLeaf that is None (the special "end of message" character) 
+      * TreeLeaf that is None (the special "end of message" character)
           is represented by the two bits 00.
       * TreeBranch is represented by the single bit 1, followed by a
           description of the left subtree and then the right subtree.
@@ -24,7 +23,19 @@ def read_tree(bitreader):
     Returns:
       A Huffman tree constructed according to the given description.
     '''
-    pass
+    def recurse(bitreader):
+        if bitreader.readbit():
+            left = recurse(bitreader)
+            right = recurse(bitreader)
+            return huffman.TreeBranch(left, right)
+        else:
+            if bitreader.readbit():
+                return huffman.TreeLeaf(bitreader.readbits(8))
+
+            else:
+                return huffman.TreeLeaf(None)
+
+    return recurse(bitreader)
 
 
 def decode_byte(tree, bitreader):
@@ -32,7 +43,7 @@ def decode_byte(tree, bitreader):
     Reads bits from the bit reader and traverses the tree from
     the root to a leaf. Once a leaf is reached, bits are no longer read
     and the value of that leave is returned.
-    
+
     Args:
       bitreader: An instance of bitio.BitReader to read the tree from.
       tree: A Huffman tree.
@@ -40,8 +51,20 @@ def decode_byte(tree, bitreader):
     Returns:
       Next byte of the compressed bit stream.
     """
-    pass
+    curr = tree
+    def recurse(curr):
+        try:
+            print("CURR" + str(curr.value))
+            return curr.value
+        except:
+            if bitreader.readbit():
+                print("CURR>RIGHT")
+                return recurse(curr.right)
+            else:
+                print("CURR>LEFT")
+                return recurse(curr.left)
 
+    return recurse(curr)
 
 def decompress(compressed, uncompressed):
     '''First, read a Huffman tree from the 'compressed' stream using your
@@ -55,7 +78,21 @@ def decompress(compressed, uncompressed):
           output is written.
 
     '''
-    pass
+
+    input_stream = bitio.BitReader(compressed)
+    print(input_stream.bcount)
+    output_stream = bitio.BitWriter(uncompressed)
+    tree = read_tree(input_stream)
+    print(input_stream.bcount)
+
+    while(True):
+        next_byte = decode_byte(tree, input_stream)
+        print(next_byte)
+        if next_byte == None:
+            break
+        else:
+            output_stream.writebits(next_byte, 8)
+
 
 
 def write_tree(tree, bitwriter):

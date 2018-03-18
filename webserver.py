@@ -13,6 +13,7 @@ class HuffmanRequestHandler (http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', self.guess_type(path))
                 self.end_headers()
+                print(compressed)
                 if not header_only:
                     util.decompress(compressed, self.wfile)
         except OSError:
