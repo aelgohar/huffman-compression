@@ -1,6 +1,7 @@
+# Ahmed El Gohary, 1508009
+
 import bitio
 import huffman
-
 
 def read_tree(bitreader):
 
@@ -23,17 +24,18 @@ def read_tree(bitreader):
     Returns:
       A Huffman tree constructed according to the given description.
     '''
+    # recursive function to read the bitreader
     def recurse(bitreader):
-        if bitreader.readbit():
-            left = recurse(bitreader)
-            right = recurse(bitreader)
-            return huffman.TreeBranch(left, right)
-        else:
-            if bitreader.readbit():
-                return huffman.TreeLeaf(bitreader.readbits(8))
+        if bitreader.readbit(): # if we get a 1, that means we have a branch
+            left = recurse(bitreader)   # find left tree
+            right = recurse(bitreader)  # find right tree
+            return huffman.TreeBranch(left, right)  # return tree branch
+        else:   # we got a 0
+            if bitreader.readbit(): # we got a 01
+                return huffman.TreeLeaf(bitreader.readbits(8))  # read byte
 
             else:
-                return huffman.TreeLeaf(None)
+                return huffman.TreeLeaf(None)   # return empty tree leaf
 
     return recurse(bitreader)
 
@@ -51,20 +53,18 @@ def decode_byte(tree, bitreader):
     Returns:
       Next byte of the compressed bit stream.
     """
-    curr = tree
+    # recursive function to decode bytes
     def recurse(curr):
-        try:
-            print("CURR" + str(curr.value))
+        if isinstance(curr, huffman.TreeLeaf):  # return value if leaf
             return curr.value
-        except:
+        else:
+            # go right or left depending on code
             if bitreader.readbit():
-                print("CURR>RIGHT")
                 return recurse(curr.right)
             else:
-                print("CURR>LEFT")
                 return recurse(curr.left)
 
-    return recurse(curr)
+    return recurse(tree)
 
 def decompress(compressed, uncompressed):
     '''First, read a Huffman tree from the 'compressed' stream using your
@@ -78,20 +78,17 @@ def decompress(compressed, uncompressed):
           output is written.
 
     '''
-
+    # initialise bit streams and tree
     input_stream = bitio.BitReader(compressed)
-    print(input_stream.bcount)
-    output_stream = bitio.BitWriter(uncompressed)
     tree = read_tree(input_stream)
-    print(input_stream.bcount)
+    output_stream = bitio.BitWriter(uncompressed)
 
     while(True):
-        next_byte = decode_byte(tree, input_stream)
-        print(next_byte)
-        if next_byte == None:
+        next_byte = decode_byte(tree, input_stream) # decode each byte
+        if next_byte == None:   # break if end of file
             break
         else:
-            output_stream.writebits(next_byte, 8)
+            output_stream.writebits(next_byte, 8)   # write the decoded byte
 
 
 
@@ -106,7 +103,20 @@ def write_tree(tree, bitwriter):
       tree: A Huffman tree.
       bitwriter: An instance of bitio.BitWriter to write the tree to.
     '''
-    pass
+    def recurse(curr):
+        if isinstance(curr, huffman.TreeBranch):    # write 1 if branch
+            bitwriter.writebit(0b1)
+            recurse(curr.left)  # check left branch first
+            recurse(curr.right) # check right branch after
+        else:
+            if curr.value is not None:
+                bitwriter.writebits(0b01, 2)    # output 01 then the byte
+                bitwriter.writebits(curr.value, 8)
+            else:
+                bitwriter.writebits(0b00, 2)    # output 00
+        return
+
+    recurse(tree)
 
 
 def compress(tree, uncompressed, compressed):
@@ -124,4 +134,28 @@ def compress(tree, uncompressed, compressed):
       compressed: A file stream that will receive the tree description
           and the coded input data.
     '''
-    pass
+    # initialise tables and input and output bitstreams
+    table = huffman.make_encoding_table(tree)
+    input_stream = bitio.BitReader(uncompressed)
+
+    output_stream = bitio.BitWriter(compressed)
+    write_tree(tree, output_stream)
+
+    # set up a counter to find partially filled bytes
+    counter = 0
+
+    while (True):
+        try:
+            # tries to read 8 bytes, if end of file found, go to except
+            byte = input_stream.readbits(8)
+            path = table[byte]  # find the path
+            counter += len(path)
+            for i in path:
+                # output the bits
+                output_stream.writebit(i)
+        except:
+            # for partially filled bytes, pad with 0's to make a byte
+            byte = output_stream.writebits(0, counter % 8)
+            # flush
+            output_stream.flush()
+            return
