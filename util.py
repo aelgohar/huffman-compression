@@ -1,4 +1,5 @@
 # Ahmed El Gohary, 1508009
+# Manimeldura De Silva, 1497692
 
 import bitio
 import huffman
@@ -33,7 +34,6 @@ def read_tree(bitreader):
         else:   # we got a 0
             if bitreader.readbit(): # we got a 01
                 return huffman.TreeLeaf(bitreader.readbits(8))  # read byte
-
             else:
                 return huffman.TreeLeaf(None)   # return empty tree leaf
 
@@ -89,6 +89,7 @@ def decompress(compressed, uncompressed):
             break
         else:
             output_stream.writebits(next_byte, 8)   # write the decoded byte
+    output_stream.flush()
 
 
 
@@ -143,7 +144,7 @@ def compress(tree, uncompressed, compressed):
 
     # set up a counter to find partially filled bytes
     counter = 0
-
+    
     while (True):
         try:
             # tries to read 8 bytes, if end of file found, go to except
@@ -155,7 +156,13 @@ def compress(tree, uncompressed, compressed):
                 output_stream.writebit(i)
         except:
             # for partially filled bytes, pad with 0's to make a byte
-            byte = output_stream.writebits(0, counter % 8)
+            path = table[None]  # find the path
+            counter += len(path)
+            for i in path:
+                # output the bits
+                output_stream.writebit(i)
+            output_stream.writebits(0, counter % 8)
             # flush
             output_stream.flush()
             return
+
